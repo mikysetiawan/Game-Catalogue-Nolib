@@ -47,16 +47,16 @@ class ViewController: UIViewController {
         gameTable.register(UINib(nibName: "GamesTableViewCell", bundle: nil), forCellReuseIdentifier: "gamesCell")
     }
     
-    fileprivate func startOperations(movie: GameModel, indexPath: IndexPath) {
+    fileprivate func startOperations(movie: GameModel, indexPath: IndexPath, tab: Int) {
         if movie.state == .new {
-            startDownload(movie: movie, indexPath: indexPath)
+            startDownload(movie: movie, indexPath: indexPath, tab: tab)
         }
     }
     
-    fileprivate func startDownload(movie: GameModel, indexPath: IndexPath) {
+    fileprivate func startDownload(movie: GameModel, indexPath: IndexPath, tab: Int) {
         guard _pendingOperations.downloadInProgress[indexPath] == nil else { return }
         
-        let downloader = ImageDownloader(index: indexPath.row)
+        let downloader = ImageDownloader(index: indexPath.row, tab: tab)
         downloader.completionBlock = {
             if downloader.isCancelled { return }
             
@@ -65,7 +65,7 @@ class ViewController: UIViewController {
                 
                 self.gameTable.reloadRows(at: [indexPath], with: .automatic)
                 self.popularTable.reloadRows(at: [indexPath], with: .automatic)
-                
+
                 //gameDat[indexPath.row].state = .downloaded
                 //popularGame[indexPath.row].state = .downloaded
                 print(gameDat[indexPath.row])
@@ -215,7 +215,7 @@ extension ViewController: UITableViewDelegate, UITableViewDataSource, UIScrollVi
                 let movie = popularGame[indexPath.row]
                 if movie.state == .new {
                     if !tableView.isDragging && !tableView.isDecelerating {
-                        startOperations(movie: movie, indexPath: indexPath)
+                        startOperations(movie: movie, indexPath: indexPath, tab: 1)
                     }
                 } else {
                 }
@@ -236,7 +236,7 @@ extension ViewController: UITableViewDelegate, UITableViewDataSource, UIScrollVi
             let movie = gameDat[indexPath.row]
             if movie.state == .new {
                 if !tableView.isDragging && !tableView.isDecelerating {
-                    startOperations(movie: gameDat[indexPath.row], indexPath: indexPath)
+                    startOperations(movie: gameDat[indexPath.row], indexPath: indexPath, tab: 2)
                 }
             } else {
             }
@@ -288,15 +288,20 @@ extension ViewController: UITableViewDelegate, UITableViewDataSource, UIScrollVi
 
 class ImageDownloader: Operation {
     private var game: GameModel
+    private var _index: Int
+    private var _tab: Int
     
-    init(index: Int) {
+    init(index: Int, tab: Int) {
         game = GameModel(id: 0, name: "", released: "", bgImage: "", rating: 0)
-        if(!popularGame.isEmpty){
+        if(!popularGame.isEmpty && tab == 1){
             game = popularGame[index]
         }
-        if(!gameDat.isEmpty){
+        if(!gameDat.isEmpty && tab == 2){
             game = gameDat[index]
         }
+        
+        _index = index
+        _tab = tab
     }
     
     override func main() {
@@ -307,7 +312,15 @@ class ImageDownloader: Operation {
         guard let imageData = try? Data(contentsOf: URL(string: game.bgImage)!) else { return }
         
         if !imageData.isEmpty {
-            game.downloadImage(imagedata: UIImage(data: imageData)!, statedata: .downloaded)
+            if(_tab == 1){
+                popularGame[_index].image = UIImage(data: imageData)
+                popularGame[_index].state = .downloaded
+            }
+            if(_tab == 2){
+                gameDat[_index].image = UIImage(data: imageData)
+                gameDat[_index].state = .downloaded
+            }
+
             //print(game)
         } else {
             game.image = nil
